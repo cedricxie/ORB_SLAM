@@ -294,7 +294,7 @@ void Tracking::Track()
         bool bOK;
 
         // Initial camera pose estimation using motion model or relocalization (if tracking is lost)
-        if(!mbOnlyTracking)
+        if(!mbOnlyTracking) // mbOnlyTracking == False
         {
             // Local Mapping is activated. This is the normal behaviour, unless
             // you explicitly activate the "only tracking" mode.
@@ -320,7 +320,7 @@ void Tracking::Track()
                 bOK = Relocalization();
             }
         }
-        else
+        else // mbOnlyTracking == True
         {
             // Localization Mode: Local Mapping is deactivated
 
@@ -330,7 +330,7 @@ void Tracking::Track()
             }
             else
             {
-                if(!mbVO)
+                if(!mbVO) // mbVO = False
                 {
                     // In last frame we tracked enough MapPoints in the map
 
@@ -343,7 +343,7 @@ void Tracking::Track()
                         bOK = TrackReferenceKeyFrame();
                     }
                 }
-                else
+                else // mbVO = True
                 {
                     // In last frame we tracked mainly "visual odometry" points.
 
@@ -388,9 +388,9 @@ void Tracking::Track()
                     }
 
                     bOK = bOKReloc || bOKMM;
-                }
-            }
-        }
+                } // mbVO ?
+            } // mState ?
+        } // mbOnlyTracking ? 
 
         mCurrentFrame.mpReferenceKF = mpReferenceKF;
 
