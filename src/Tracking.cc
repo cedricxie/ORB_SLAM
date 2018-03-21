@@ -466,7 +466,7 @@ void Tracking::Track()
                 if(mCurrentFrame.mvpMapPoints[i] && mCurrentFrame.mvbOutlier[i])
                     mCurrentFrame.mvpMapPoints[i]=static_cast<MapPoint*>(NULL);
             }
-        }
+        } // bOK
 
         // Reset if the camera get lost soon after initialization
         if(mState==LOST)
