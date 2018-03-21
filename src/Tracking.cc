@@ -1474,9 +1474,9 @@ bool Tracking::Relocalization()
                                     if(mCurrentFrame.mvbOutlier[io])
                                         mCurrentFrame.mvpMapPoints[io]=NULL;
                             }
-                        }
-                    }
-                }
+                        } // nGood>30 && nGood<50 ?
+                    } // nadditional+nGood>=50
+                } // nGood<50 ?
 
 
                 // If the pose is supported by enough inliers stop ransacs and continue
@@ -1485,9 +1485,9 @@ bool Tracking::Relocalization()
                     bMatch = true;
                     break;
                 }
-            }
-        }
-    }
+            } // !Tcw.empty() ?
+        } // nKFs ?
+    } // nCandidates ?
 
     if(!bMatch)
     {
