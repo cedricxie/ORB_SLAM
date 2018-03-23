@@ -685,10 +685,10 @@ void LocalMapping::KeyFrameCulling()
                         {
                             nRedundantObservations++;
                         }
-                    }
-                }
-            }
-        }  
+                    } // pMP->Observations()>thObs ?
+                } // !pMP->isBad() ?
+            } // pMP ?
+        } // i<vpMapPoints.size() ?
 
         if(nRedundantObservations>0.9*nMPs)
             pKF->SetBadFlag();
