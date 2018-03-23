@@ -447,8 +447,8 @@ void LocalMapping::CreateNewMapPoints()
             mlpRecentAddedMapPoints.push_back(pMP);
 
             nnew++;
-        }
-    }
+        } // ikp<nmatches ?
+    } // i<vpNeighKFs.size() ?
 }
 
 void LocalMapping::SearchInNeighbors()
