@@ -75,6 +75,7 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     }
 
     // Generate sets of 8 points for each RANSAC iteration
+    // 为每个iteration选取8个随机的index（在FindHomography和FindFundamental被调用）
     mvSets = vector< vector<size_t> >(mMaxIterations,vector<size_t>(8,0));
 
     DUtils::Random::SeedRandOnce(0);
@@ -222,7 +223,8 @@ void Initializer::FindFundamental(vector<bool> &vbMatchesInliers, float &score, 
     }
 }
 
-
+// 从特征点匹配求homography（normalized DLT）
+// Algorithm 4.2 in Multiple View Geometry in Computer Vision.
 cv::Mat Initializer::ComputeH21(const vector<cv::Point2f> &vP1, const vector<cv::Point2f> &vP2)
 {
     const int N = vP1.size();
@@ -265,6 +267,8 @@ cv::Mat Initializer::ComputeH21(const vector<cv::Point2f> &vP1, const vector<cv:
     return vt.row(8).reshape(0, 3);
 }
 
+// 从特征点匹配求fundamental matrix（8点法）
+// Algorithm 11.1 in Multiple View Geometry in Computer Vision.
 cv::Mat Initializer::ComputeF21(const vector<cv::Point2f> &vP1,const vector<cv::Point2f> &vP2)
 {
     const int N = vP1.size();
@@ -302,8 +306,14 @@ cv::Mat Initializer::ComputeF21(const vector<cv::Point2f> &vP1,const vector<cv::
     return  u*cv::Mat::diag(w)*vt;
 }
 
+// 从homography计算symmetric transfer errors
+// IV. AUTOMATIC MAP INITIALIZATION （2） in Author's paper
+// symmetric transfer errors:
+//    4.2.2 Geometric distance in Multiple View Geometry in Computer Vision.
+// model selection
+//    4.7.1 RANSAC in Multiple View Geometry in Computer Vision
 float Initializer::CheckHomography(const cv::Mat &H21, const cv::Mat &H12, vector<bool> &vbMatchesInliers, float sigma)
-{   
+{
     const int N = mvMatches12.size();
 
     const float h11 = H21.at<float>(0,0);
@@ -329,7 +339,7 @@ float Initializer::CheckHomography(const cv::Mat &H21, const cv::Mat &H12, vecto
     vbMatchesInliers.resize(N);
 
     float score = 0;
-
+    // 来源于卡方分布
     const float th = 5.991;
 
     const float invSigmaSquare = 1.0/(sigma*sigma);
@@ -387,6 +397,12 @@ float Initializer::CheckHomography(const cv::Mat &H21, const cv::Mat &H12, vecto
     return score;
 }
 
+// 从fundamental matrix计算symmetric transfer errors
+// IV. AUTOMATIC MAP INITIALIZATION （2） in Author's paper
+// symmetric transfer errors:
+//    4.2.2 Geometric distance in Multiple View Geometry in Computer Vision.
+// model selection
+//    4.7.1 RANSAC in Multiple View Geometry in Computer Vision
 float Initializer::CheckFundamental(const cv::Mat &F21, vector<bool> &vbMatchesInliers, float sigma)
 {
     const int N = mvMatches12.size();
@@ -467,6 +483,9 @@ float Initializer::CheckFundamental(const cv::Mat &F21, vector<bool> &vbMatchesI
     return score;
 }
 
+// 从F恢复P
+// 参考文献：
+// Result 9.19 in Multiple View Geometry in Computer Vision
 bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv::Mat &K,
                             cv::Mat &R21, cv::Mat &t21, vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated, float minParallax, int minTriangulated)
 {
@@ -481,7 +500,7 @@ bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv:
     cv::Mat R1, R2, t;
 
     // Recover the 4 motion hypotheses
-    DecomposeE(E21,R1,R2,t);  
+    DecomposeE(E21,R1,R2,t);
 
     cv::Mat t1=t;
     cv::Mat t2=-t;
@@ -569,6 +588,9 @@ bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv:
     return false;
 }
 
+// 从H恢复P
+// 参考文献：
+// Faugeras et al, Motion and structure from motion in a piecewise planar environment. International Journal of Pattern Recognition and Artificial Intelligence, 1988.
 bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv::Mat &K,
                       cv::Mat &R21, cv::Mat &t21, vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated, float minParallax, int minTriangulated)
 {
@@ -687,7 +709,7 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
 
 
     int bestGood = 0;
-    int secondBestGood = 0;    
+    int secondBestGood = 0;
     int bestSolutionIdx = -1;
     float bestParallax = -1;
     vector<cv::Point3f> bestP3D;
@@ -746,6 +768,7 @@ void Initializer::Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, 
     x3D = x3D.rowRange(0,3)/x3D.at<float>(3);
 }
 
+// 归一化特征点到同一尺度（作为normalize DLT的输入）
 void Initializer::Normalize(const vector<cv::KeyPoint> &vKeys, vector<cv::Point2f> &vNormalizedPoints, cv::Mat &T)
 {
     float meanX = 0;
