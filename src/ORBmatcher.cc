@@ -42,6 +42,8 @@ ORBmatcher::ORBmatcher(float nnratio, bool checkOri): mfNNratio(nnratio), mbChec
 {
 }
 
+// Search matches between Frame keypoints and projected MapPoints. Returns number of matches
+// Used to track the local map (Tracking)
 int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoints, const float th)
 {
     int nmatches=0;
@@ -112,7 +114,7 @@ int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoint
                 bestLevel2 = F.mvKeysUn[idx].octave;
                 bestDist2=dist;
             }
-        }
+        } // const_iterator vit ?
 
         // Apply ratio to second match (only if best and second are in the same scale level)
         if(bestDist<=TH_HIGH)
@@ -123,7 +125,7 @@ int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoint
             F.mvpMapPoints[bestIdx]=pMP;
             nmatches++;
         }
-    }
+    } // iMP<vpMapPoints.size() ?
 
     return nmatches;
 }
@@ -156,6 +158,9 @@ bool ORBmatcher::CheckDistEpipolarLine(const cv::KeyPoint &kp1,const cv::KeyPoin
     return dsqr<3.84*pKF2->mvLevelSigma2[kp2.octave];
 }
 
+// Search matches between MapPoints in a KeyFrame and ORB in a Frame.
+// Brute force constrained to ORB that belong to the same vocabulary node (at a certain level)
+// (Relocalisation)
 int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPointMatches)
 {
     const vector<MapPoint*> vpMapPointsKF = pKF->GetMapPointMatches();
@@ -194,7 +199,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
                     continue;
 
                 if(pMP->isBad())
-                    continue;                
+                    continue;
 
                 const cv::Mat &dKF= pKF->mDescriptors.row(realIdxKF);
 
@@ -223,7 +228,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
                     {
                         bestDist2=dist;
                     }
-                }
+                } // iF<vIndicesF.size()
 
                 if(bestDist1<=TH_LOW)
                 {
@@ -245,10 +250,10 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
                             rotHist[bin].push_back(bestIdxF);
                         }
                         nmatches++;
-                    }
-                }
+                    } // static_cast<float>(bestDist1)<mfNNratio*static_cast<float>(bestDist2) ?
+                } // bestDist1<=TH_LOW
 
-            }
+            } // iKF<vIndicesKF.size()
 
             KFit++;
             Fit++;
@@ -287,6 +292,8 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
     return nmatches;
 }
 
+// Project MapPoints using a Similarity Transformation and search matches.
+// Used in loop detection (Loop Closing)
 int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapPoint*> &vpPoints, vector<MapPoint*> &vpMatched, int th)
 {
     // Get Calibration Parameters for later projection
@@ -397,11 +404,12 @@ int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapP
             nmatches++;
         }
 
-    }
+    } // iMP<iendMP ?
 
     return nmatches;
 }
 
+// Matching for the Map Initialization (only used in the monocular case)
 int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f> &vbPrevMatched, vector<int> &vnMatches12, int windowSize)
 {
     int nmatches=0;
@@ -656,7 +664,7 @@ int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
 
 int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F12,
                                        vector<pair<size_t, size_t> > &vMatchedPairs, const bool bOnlyStereo)
-{    
+{
     const DBoW2::FeatureVector &vFeatVec1 = pKF1->mFeatVec;
     const DBoW2::FeatureVector &vFeatVec2 = pKF2->mFeatVec;
 
@@ -695,9 +703,9 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
             for(size_t i1=0, iend1=f1it->second.size(); i1<iend1; i1++)
             {
                 const size_t idx1 = f1it->second[i1];
-                
+
                 MapPoint* pMP1 = pKF1->GetMapPoint(idx1);
-                
+
                 // If there is already a MapPoint skip
                 if(pMP1)
                     continue;
@@ -707,20 +715,20 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
                 if(bOnlyStereo)
                     if(!bStereo1)
                         continue;
-                
+
                 const cv::KeyPoint &kp1 = pKF1->mvKeysUn[idx1];
-                
+
                 const cv::Mat &d1 = pKF1->mDescriptors.row(idx1);
-                
+
                 int bestDist = TH_LOW;
                 int bestIdx2 = -1;
-                
+
                 for(size_t i2=0, iend2=f2it->second.size(); i2<iend2; i2++)
                 {
                     size_t idx2 = f2it->second[i2];
-                    
+
                     MapPoint* pMP2 = pKF2->GetMapPoint(idx2);
-                    
+
                     // If we have already matched or there is a MapPoint skip
                     if(vbMatched2[idx2] || pMP2)
                         continue;
@@ -730,11 +738,11 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
                     if(bOnlyStereo)
                         if(!bStereo2)
                             continue;
-                    
+
                     const cv::Mat &d2 = pKF2->mDescriptors.row(idx2);
-                    
+
                     const int dist = DescriptorDistance(d1,d2);
-                    
+
                     if(dist>TH_LOW || dist>bestDist)
                         continue;
 
@@ -754,7 +762,7 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
                         bestDist = dist;
                     }
                 }
-                
+
                 if(bestIdx2>=0)
                 {
                     const cv::KeyPoint &kp2 = pKF2->mvKeysUn[bestIdx2];
